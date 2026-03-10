@@ -346,6 +346,11 @@ function updateDiagram() {
   preview.innerHTML = '';
   preview.appendChild(svgElement);
 
+  // Flash the preview to signal it updated
+  preview.classList.remove('updated');
+  void preview.offsetWidth; // force reflow
+  preview.classList.add('updated');
+
   // Show ALL messages with ignore checkboxes (including already-ignored ones)
   renderErrorLog(checkResult.messages);
 }

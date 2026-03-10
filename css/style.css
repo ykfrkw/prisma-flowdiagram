@@ -118,6 +118,29 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.live-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: #16a34a;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 1px 8px;
+  letter-spacing: 0.03em;
+  animation: pulse-live 2s ease-in-out infinite;
+}
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+@keyframes flash-update {
+  0%   { outline: 2px solid rgba(37, 99, 235, 0.5); }
+  100% { outline: 2px solid transparent; }
+}
+#preview.updated {
+  animation: flash-update 0.4s ease-out forwards;
+}
 
 /* Editor */
 #editor {
