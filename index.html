@@ -28,7 +28,19 @@
     <div id="left-pane">
       <div class="pane-header">
         <span class="pane-title">Notation</span>
-        <span class="pane-hint">Use # for columns, ## for sections, ### for boxes, #### for exclusions</span>
+      </div>
+      <div id="instructions">
+        <p>Edit the notation below — the diagram on the right updates automatically as you type.</p>
+        <table class="inst-table">
+          <tr><td><code>#</code></td><td>Column header</td></tr>
+          <tr><td><code>##</code></td><td>Section label</td></tr>
+          <tr><td><code>###</code></td><td>Box <span class="inst-muted">(add <code>(n = N)</code> for counts)</span></td></tr>
+          <tr><td><code>####</code></td><td>Exclusion box (attached to the box above)</td></tr>
+          <tr><td><code>- item</code></td><td>Bullet line inside a box</td></tr>
+          <tr><td><code>id: foo</code></td><td>Label a box for cross-column arrows</td></tr>
+          <tr><td><code>to: foo</code></td><td>Draw a merge arrow to box <em>foo</em></td></tr>
+          <tr><td><code>!check: auto</code></td><td>Validate counts and highlight mismatches</td></tr>
+        </table>
       </div>
       <textarea id="editor" spellcheck="false" autocomplete="off"></textarea>
     </div>
@@ -36,7 +48,6 @@
     <div id="right-pane">
       <div class="pane-header">
         <span class="pane-title">Preview</span>
-        <span class="live-badge" title="Auto-updates as you type">&#9679; Live</span>
       </div>
       <div id="preview"></div>
       <div id="error-log" style="display:none;"></div>
