@@ -19,6 +19,8 @@ const WRAP_CHARS = 32;
 const EXCL_WRAP = 25;
 const CORNER = 4;
 const ARROWHEAD_SIZE = 6;
+const AH_LEN  = 8;   // arrowhead length in canvas px (markerUnits="userSpaceOnUse")
+const AH_HALF = 5;   // arrowhead half-width in canvas px
 
 // Section label compact rect sizing
 const LABEL_RECT_W = FONT_SIZE + 14;   // ~25px — one line height of rotated text
@@ -118,14 +120,15 @@ function renderBoxText(boxTitle, boxContents, boxX, boxY, wrapW, titleBold) {
 function makeArrowMarker() {
   const marker = svgEl('marker', {
     id: 'arrowhead',
-    markerWidth: ARROWHEAD_SIZE,
-    markerHeight: ARROWHEAD_SIZE,
-    refX: ARROWHEAD_SIZE,
-    refY: ARROWHEAD_SIZE / 2,
+    markerUnits: 'userSpaceOnUse',
+    markerWidth: AH_LEN + 1,
+    markerHeight: AH_HALF * 2 + 1,
+    refX: AH_LEN,    // tip of arrowhead aligns exactly with line endpoint
+    refY: AH_HALF,
     orient: 'auto'
   });
   marker.appendChild(svgEl('polygon', {
-    points: `0 0, ${ARROWHEAD_SIZE} ${ARROWHEAD_SIZE / 2}, 0 ${ARROWHEAD_SIZE}`,
+    points: `0 0, ${AH_LEN} ${AH_HALF}, 0 ${AH_HALF * 2}`,
     fill: COLOR_ARROW
   }));
   return marker;
@@ -134,14 +137,15 @@ function makeArrowMarker() {
 function makeArrowMarkerRed() {
   const marker = svgEl('marker', {
     id: 'arrowhead-red',
-    markerWidth: ARROWHEAD_SIZE,
-    markerHeight: ARROWHEAD_SIZE,
-    refX: ARROWHEAD_SIZE,
-    refY: ARROWHEAD_SIZE / 2,
+    markerUnits: 'userSpaceOnUse',
+    markerWidth: AH_LEN + 1,
+    markerHeight: AH_HALF * 2 + 1,
+    refX: AH_LEN,
+    refY: AH_HALF,
     orient: 'auto'
   });
   marker.appendChild(svgEl('polygon', {
-    points: `0 0, ${ARROWHEAD_SIZE} ${ARROWHEAD_SIZE / 2}, 0 ${ARROWHEAD_SIZE}`,
+    points: `0 0, ${AH_LEN} ${AH_HALF}, 0 ${AH_HALF * 2}`,
     fill: COLOR_ERROR_STROKE
   }));
   return marker;
@@ -174,23 +178,24 @@ function drawRightArrow(x1, y, x2) {
  * that avoids passing through any intermediate boxes.
  * Excludes the source box (fromY is its bottom) and the destination box (toY is its top).
  */
+/**
+ * Find a Y for the horizontal segment of a cross-column arrow.
+ * Searches ALL boxes between fromY and toY (any X) so that:
+ *   - the horizontal segment is below every box in that Y band, AND
+ *   - the final vertical descent to toY is also below every column box,
+ *     preventing penetration even when targetCX falls inside another column.
+ */
 function findSafeRouteY(sx, tx, fromY, toY, boxPositions) {
-  const xMin = Math.min(sx, tx);
-  const xMax = Math.max(sx, tx);
-  const margin = 3;
+  const margin = 8;
 
-  // Collect boxes whose X range overlaps the horizontal path and whose Y is in [fromY, toY]
   let maxBottom = fromY;
   for (const [, pos] of boxPositions) {
-    if (pos.x + pos.w <= xMin || pos.x >= xMax) continue;
     if (pos.y + pos.h <= fromY || pos.y >= toY) continue;
     if (pos.y + pos.h > maxBottom) maxBottom = pos.y + pos.h;
   }
 
   const clearY = maxBottom + margin;
-  // If routing below all blockers still lands before the destination, use it
   if (clearY < toY - margin) return clearY;
-  // Fall back: just above the destination
   return toY - margin * 2;
 }
 
