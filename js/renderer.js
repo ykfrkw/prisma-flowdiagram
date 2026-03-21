@@ -470,16 +470,14 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
 
         // Down arrow to next box within same section
         if (bi < sec.boxes.length - 1) {
-          const { bh: nextBH, rowH: nextRowH } = rows[bi + 1];
           const nextRowTopY = rowTopY + rowH + V_ARROW;
-          const nextActualBoxY = nextRowTopY + Math.floor((nextRowH - nextBH) / 2);
           const fromBox = sec.boxes[bi];
           const toBox = sec.boxes[bi + 1];
           const arrowColor = isErrorArrow(fromBox, toBox) ? COLOR_ERROR_STROKE : COLOR_ARROW;
           svg.appendChild(drawDownArrow(
             boxX + BOX_W / 2,
             actualBoxY + bh,
-            nextActualBoxY,
+            nextRowTopY,   // boxes are top-aligned; no centering offset
             arrowColor
           ));
         }
