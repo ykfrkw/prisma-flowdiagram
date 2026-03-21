@@ -117,60 +117,42 @@ function renderBoxText(boxTitle, boxContents, boxX, boxY, wrapW, titleBold) {
   return group;
 }
 
-function makeArrowMarker() {
-  const marker = svgEl('marker', {
-    id: 'arrowhead',
-    markerUnits: 'userSpaceOnUse',
-    markerWidth: AH_LEN + 1,
-    markerHeight: AH_HALF * 2 + 1,
-    refX: AH_LEN,    // tip of arrowhead aligns exactly with line endpoint
-    refY: AH_HALF,
-    orient: 'auto'
-  });
-  marker.appendChild(svgEl('polygon', {
-    points: `0 0, ${AH_LEN} ${AH_HALF}, 0 ${AH_HALF * 2}`,
-    fill: COLOR_ARROW
-  }));
-  return marker;
-}
-
-function makeArrowMarkerRed() {
-  const marker = svgEl('marker', {
-    id: 'arrowhead-red',
-    markerUnits: 'userSpaceOnUse',
-    markerWidth: AH_LEN + 1,
-    markerHeight: AH_HALF * 2 + 1,
-    refX: AH_LEN,
-    refY: AH_HALF,
-    orient: 'auto'
-  });
-  marker.appendChild(svgEl('polygon', {
-    points: `0 0, ${AH_LEN} ${AH_HALF}, 0 ${AH_HALF * 2}`,
-    fill: COLOR_ERROR_STROKE
-  }));
-  return marker;
+/**
+ * Arrowhead polygon drawn directly in canvas space — no SVG markers.
+ * direction: 'down' | 'right'
+ * (tx, ty) = tip of the arrowhead (touches the box border exactly)
+ */
+function makeArrowHeadPolygon(tx, ty, direction, color) {
+  let pts;
+  if (direction === 'down') {
+    pts = `${tx - AH_HALF},${ty - AH_LEN} ${tx + AH_HALF},${ty - AH_LEN} ${tx},${ty}`;
+  } else {
+    pts = `${tx - AH_LEN},${ty - AH_HALF} ${tx - AH_LEN},${ty + AH_HALF} ${tx},${ty}`;
+  }
+  return svgEl('polygon', { points: pts, fill: color || COLOR_ARROW });
 }
 
 function drawDownArrow(x, y1, y2, color) {
   color = color || COLOR_ARROW;
-  const markerId = color === COLOR_ERROR_STROKE ? 'arrowhead-red' : 'arrowhead';
-  return svgEl('line', {
+  const g = svgEl('g');
+  g.appendChild(svgEl('line', {
     x1: x, y1: y1,
-    x2: x, y2: y2,
-    stroke: color,
-    'stroke-width': 1.5,
-    'marker-end': 'url(#' + markerId + ')'
-  });
+    x2: x, y2: y2 - AH_LEN,
+    stroke: color, 'stroke-width': 1.5
+  }));
+  g.appendChild(makeArrowHeadPolygon(x, y2, 'down', color));
+  return g;
 }
 
 function drawRightArrow(x1, y, x2) {
-  return svgEl('line', {
+  const g = svgEl('g');
+  g.appendChild(svgEl('line', {
     x1: x1, y1: y,
-    x2: x2, y2: y,
-    stroke: COLOR_ARROW,
-    'stroke-width': 1.5,
-    'marker-end': 'url(#arrowhead)'
-  });
+    x2: x2 - AH_LEN, y2: y,
+    stroke: COLOR_ARROW, 'stroke-width': 1.5
+  }));
+  g.appendChild(makeArrowHeadPolygon(x2, y, 'right', COLOR_ARROW));
+  return g;
 }
 
 /**
@@ -348,11 +330,6 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
     xmlns: SVG_NS
   });
 
-  const defs = svgEl('defs');
-  defs.appendChild(makeArrowMarker());
-  defs.appendChild(makeArrowMarkerRed());
-  svg.appendChild(defs);
-
   svg.appendChild(svgEl('rect', { x: 0, y: 0, width: svgW, height: 9999, fill: 'white' }));
 
   // --- Column headers ---
@@ -520,15 +497,14 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
 
         const routeY = findSafeRouteY(sx, tx, sy, ty, boxPositions);
         const pathColor = isErrorArrow(box, destBox) ? COLOR_ERROR_STROKE : COLOR_ARROW;
-        const markerId = pathColor === COLOR_ERROR_STROKE ? 'arrowhead-red' : 'arrowhead';
         // Route: down from source → horizontal at routeY → down into destination from above
         svg.appendChild(svgEl('path', {
-          d: `M ${sx} ${sy} L ${sx} ${routeY} L ${tx} ${routeY} L ${tx} ${ty}`,
+          d: `M ${sx} ${sy} L ${sx} ${routeY} L ${tx} ${routeY} L ${tx} ${ty - AH_LEN}`,
           stroke: pathColor,
           'stroke-width': 1.5,
-          fill: 'none',
-          'marker-end': 'url(#' + markerId + ')'
+          fill: 'none'
         }));
+        svg.appendChild(makeArrowHeadPolygon(tx, ty, 'down', pathColor));
       }
     }
   }
@@ -589,14 +565,13 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
             const midY = findSafeRouteY(sx, targetCX, sy, targetY, boxPositions);
 
             const pathColor = isErrorArrow(srcBox, box) ? COLOR_ERROR_STROKE : COLOR_ARROW;
-            const markerId = pathColor === COLOR_ERROR_STROKE ? 'arrowhead-red' : 'arrowhead';
             svg.appendChild(svgEl('path', {
-              d: `M ${sx} ${sy} L ${sx} ${midY} L ${targetCX} ${midY} L ${targetCX} ${targetY}`,
+              d: `M ${sx} ${sy} L ${sx} ${midY} L ${targetCX} ${midY} L ${targetCX} ${targetY - AH_LEN}`,
               stroke: pathColor,
               'stroke-width': 1.5,
-              fill: 'none',
-              'marker-end': 'url(#' + markerId + ')'
+              fill: 'none'
             }));
+            svg.appendChild(makeArrowHeadPolygon(targetCX, targetY, 'down', pathColor));
           }
         }
 
