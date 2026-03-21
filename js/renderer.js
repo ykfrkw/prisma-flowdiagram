@@ -185,6 +185,16 @@ function findSafeRouteY(sx, tx, fromY, toY, boxPositions) {
 // Layout helpers
 // -------------------------------------------------------------------
 
+/** Returns true if any box in the column has an exclusion box. */
+function colHasExclusion(col) {
+  for (const sec of col.sections) {
+    for (const box of sec.boxes) {
+      if (box.exclusion) return true;
+    }
+  }
+  return false;
+}
+
 function computeRowHeights(sec) {
   return (sec ? sec.boxes : []).map(box => {
     const bh = calcBoxHeight(box.title, box.contents, WRAP_CHARS);
@@ -315,9 +325,15 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
   }
 
   // Dynamic header height: fit to actual line count across all columns
+  const FULL_HEADER_W = BOX_W + H_ARROW + EXCL_W;
+  function headerWrapW(col) {
+    const w = colHasExclusion(col) ? FULL_HEADER_W : BOX_W;
+    return Math.max(10, Math.round(HEADER_WRAP * w / FULL_HEADER_W));
+  }
+
   let dynHeaderH = 36; // minimum fallback
   for (const col of parsed.columns) {
-    const lines = wrapText(col.label, HEADER_WRAP);
+    const lines = wrapText(col.label, headerWrapW(col));
     const h = BOX_VPAD * 2 + lines.length * LINE_H;
     dynHeaderH = Math.max(dynHeaderH, h);
   }
@@ -336,7 +352,7 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
   for (let ci = 0; ci < nCols; ci++) {
     const col = parsed.columns[ci];
     const colX = MARGIN + SECTION_LABEL_W + ci * COL_UNIT;
-    const headerW = BOX_W + H_ARROW + EXCL_W;
+    const headerW = colHasExclusion(col) ? (BOX_W + H_ARROW + EXCL_W) : BOX_W;
     const fill = col.colorGrey ? COLOR_GREY_HEADER : COLOR_ORANGE;
 
     svg.appendChild(svgEl('rect', {
@@ -345,7 +361,7 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
       fill: fill, rx: CORNER, ry: CORNER
     }));
 
-    const headerLines = wrapText(col.label, HEADER_WRAP);
+    const headerLines = wrapText(col.label, headerWrapW(col));
     const lc = headerLines.length;
     const firstLineY = MARGIN + dynHeaderH / 2 - ((lc - 1) * LINE_H) / 2 + LINE_H / 2 - 2;
     for (let li = 0; li < headerLines.length; li++) {

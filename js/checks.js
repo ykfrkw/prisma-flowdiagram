@@ -26,6 +26,19 @@ function runChecks(parsed) {
     return items.reduce((acc, item) => acc + (parseN(item) || 0), 0);
   }
 
+  // Build cross-column source map early: boxId -> all boxes that point to it via to:
+  // (used in flow checks to account for merges at B from other columns)
+  const toSourcesAll = {};
+  for (const col of parsed.columns) {
+    for (const section of col.sections) {
+      for (const box of section.boxes) {
+        if (!box.to) continue;
+        if (!toSourcesAll[box.to]) toSourcesAll[box.to] = [];
+        toSourcesAll[box.to].push(box);
+      }
+    }
+  }
+
   // Rule 1: main box contents sum
   function checkContentsSum(box) {
     if (!box.checkAuto || box.n === null || box.contents.length === 0) return;
@@ -56,21 +69,36 @@ function runChecks(parsed) {
     }
   }
 
-  // Rule 3: flow check A→B — highlight BOTH boxes and the arrow between them
+  // Rule 3: flow check A→B — considers cross-column merges at B via to:
   function checkFlowInSection(boxes) {
     for (let i = 0; i < boxes.length - 1; i++) {
       const A = boxes[i], B = boxes[i + 1];
       if (!A.checkAuto && !B.checkAuto) continue;
       if (A.exclusion && A.n !== null && A.exclusion.n !== null && B.n !== null) {
-        const expected = A.n - A.exclusion.n;
+        // Start with A.n; add any cross-column sources pointing to B via to:
+        let totalInput = A.n;
+        let allSourcesKnown = true;
+        const crossSrcs = (B.id && toSourcesAll[B.id]) ? toSourcesAll[B.id] : [];
+        for (const src of crossSrcs) {
+          if (src.n === null) { allSourcesKnown = false; break; }
+          totalInput += src.n;
+        }
+        if (!allSourcesKnown) continue;
+
+        const expected = totalInput - A.exclusion.n;
         if (expected !== B.n) {
           boxErrors.add(A);
           boxErrors.add(B);
           arrowErrors.push({ from: A, to: B });
-          messages.push({
-            type: 'flow', box: B, boxA: A, boxB: B,
-            message: `Flow: "${A.title}" (${A.n}) \u2212 excl (${A.exclusion.n}) = ${expected}, but next box n = ${B.n}`
-          });
+          let msg;
+          if (crossSrcs.length > 0) {
+            const parts = [`"${A.title}" (${A.n})`];
+            for (const src of crossSrcs) parts.push(`"${src.title}" (${src.n})`);
+            msg = `Flow: (${parts.join(' + ')}) \u2212 excl (${A.exclusion.n}) = ${expected}, but next box n = ${B.n}`;
+          } else {
+            msg = `Flow: "${A.title}" (${A.n}) \u2212 excl (${A.exclusion.n}) = ${expected}, but next box n = ${B.n}`;
+          }
+          messages.push({ type: 'flow', box: B, boxA: A, boxB: B, message: msg });
         }
       }
     }
@@ -111,21 +139,27 @@ function runChecks(parsed) {
     }
   }
 
-  // to: merge check
-  const destToSources = {};
+  // Build set of boxes that have a sequential in-column predecessor.
+  // For these, the flow check already incorporates cross-column to: sources,
+  // so a standalone to: merge check would be a false positive.
+  const hasSeqPredecessor = new Set();
   for (const col of parsed.columns) {
     for (const section of col.sections) {
-      for (const box of section.boxes) {
-        if (!box.to || !box.checkAuto) continue;
-        if (!destToSources[box.to]) destToSources[box.to] = [];
-        destToSources[box.to].push(box);
+      for (let i = 1; i < section.boxes.length; i++) {
+        hasSeqPredecessor.add(section.boxes[i]);
       }
     }
   }
-  for (const [destId, srcBoxes] of Object.entries(destToSources)) {
+
+  // to: merge check (only checkAuto sources, skip boxes with sequential predecessor)
+  for (const [destId, srcBoxes] of Object.entries(toSourcesAll)) {
+    const checkAutoSrcs = srcBoxes.filter(b => b.checkAuto);
+    if (checkAutoSrcs.length === 0) continue;
     const destBox = parsed._boxById[destId];
     if (!destBox || destBox.n === null) continue;
-    const srcNs = srcBoxes.map(b => b.n);
+    // Destination has a sequential predecessor: handled by flow check, skip here
+    if (hasSeqPredecessor.has(destBox)) continue;
+    const srcNs = checkAutoSrcs.map(b => b.n);
     if (srcNs.some(n => n === null)) continue;
     const sum = srcNs.reduce((a, b) => a + b, 0);
     if (sum !== destBox.n) {
