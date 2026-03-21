@@ -169,6 +169,31 @@ function drawRightArrow(x1, y, x2) {
   });
 }
 
+/**
+ * Find a Y coordinate for the horizontal segment of a cross-column arrow
+ * that avoids passing through any intermediate boxes.
+ * Excludes the source box (fromY is its bottom) and the destination box (toY is its top).
+ */
+function findSafeRouteY(sx, tx, fromY, toY, boxPositions) {
+  const xMin = Math.min(sx, tx);
+  const xMax = Math.max(sx, tx);
+  const margin = 3;
+
+  // Collect boxes whose X range overlaps the horizontal path and whose Y is in [fromY, toY]
+  let maxBottom = fromY;
+  for (const [, pos] of boxPositions) {
+    if (pos.x + pos.w <= xMin || pos.x >= xMax) continue;
+    if (pos.y + pos.h <= fromY || pos.y >= toY) continue;
+    if (pos.y + pos.h > maxBottom) maxBottom = pos.y + pos.h;
+  }
+
+  const clearY = maxBottom + margin;
+  // If routing below all blockers still lands before the destination, use it
+  if (clearY < toY - margin) return clearY;
+  // Fall back: just above the destination
+  return toY - margin * 2;
+}
+
 // -------------------------------------------------------------------
 // Layout helpers
 // -------------------------------------------------------------------
@@ -489,7 +514,7 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
         const sy = srcPos.y + srcPos.h;
         const tx = destPos.x + destPos.w / 2;
         const ty = destPos.y;
-        const midY = Math.floor((sy + ty) / 2);
+        const midY = findSafeRouteY(sx, tx, sy, ty, boxPositions);
 
         const pathColor = isErrorArrow(box, destBox) ? COLOR_ERROR_STROKE : COLOR_ARROW;
         const markerId = pathColor === COLOR_ERROR_STROKE ? 'arrowhead-red' : 'arrowhead';
@@ -557,7 +582,7 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
 
             const sx = srcPos.x + srcPos.w / 2;
             const sy = srcPos.y + srcPos.h;
-            const midY = Math.floor((sy + targetY) / 2);
+            const midY = findSafeRouteY(sx, targetCX, sy, targetY, boxPositions);
 
             const pathColor = isErrorArrow(srcBox, box) ? COLOR_ERROR_STROKE : COLOR_ARROW;
             const markerId = pathColor === COLOR_ERROR_STROKE ? 'arrowhead-red' : 'arrowhead';
