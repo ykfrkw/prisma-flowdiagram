@@ -120,7 +120,7 @@ function makeArrowMarker() {
     id: 'arrowhead',
     markerWidth: ARROWHEAD_SIZE,
     markerHeight: ARROWHEAD_SIZE,
-    refX: ARROWHEAD_SIZE - 1,
+    refX: ARROWHEAD_SIZE,
     refY: ARROWHEAD_SIZE / 2,
     orient: 'auto'
   });
@@ -136,7 +136,7 @@ function makeArrowMarkerRed() {
     id: 'arrowhead-red',
     markerWidth: ARROWHEAD_SIZE,
     markerHeight: ARROWHEAD_SIZE,
-    refX: ARROWHEAD_SIZE - 1,
+    refX: ARROWHEAD_SIZE,
     refY: ARROWHEAD_SIZE / 2,
     orient: 'auto'
   });
@@ -515,11 +515,12 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
         const tx = destPos.x + destPos.w / 2;
         const ty = destPos.y;
 
+        const routeY = findSafeRouteY(sx, tx, sy, ty, boxPositions);
         const pathColor = isErrorArrow(box, destBox) ? COLOR_ERROR_STROKE : COLOR_ARROW;
         const markerId = pathColor === COLOR_ERROR_STROKE ? 'arrowhead-red' : 'arrowhead';
-        // Direct path: straight down to target level, then horizontal into target
+        // Route: down from source → horizontal at routeY → down into destination from above
         svg.appendChild(svgEl('path', {
-          d: `M ${sx} ${sy} L ${sx} ${ty} L ${tx} ${ty}`,
+          d: `M ${sx} ${sy} L ${sx} ${routeY} L ${tx} ${routeY} L ${tx} ${ty}`,
           stroke: pathColor,
           'stroke-width': 1.5,
           fill: 'none',
