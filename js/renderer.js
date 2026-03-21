@@ -514,12 +514,12 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
         const sy = srcPos.y + srcPos.h;
         const tx = destPos.x + destPos.w / 2;
         const ty = destPos.y;
-        const midY = findSafeRouteY(sx, tx, sy, ty, boxPositions);
 
         const pathColor = isErrorArrow(box, destBox) ? COLOR_ERROR_STROKE : COLOR_ARROW;
         const markerId = pathColor === COLOR_ERROR_STROKE ? 'arrowhead-red' : 'arrowhead';
+        // Direct path: straight down to target level, then horizontal into target
         svg.appendChild(svgEl('path', {
-          d: `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`,
+          d: `M ${sx} ${sy} L ${sx} ${ty} L ${tx} ${ty}`,
           stroke: pathColor,
           'stroke-width': 1.5,
           fill: 'none',
