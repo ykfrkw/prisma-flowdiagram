@@ -443,6 +443,8 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
             exclX, exclY, EXCL_WRAP, false
           ));
           svg.appendChild(drawRightArrow(boxX + BOX_W, mainCenterY, exclX));
+          // Register exclusion box so findSafeRouteY can route around it
+          boxPositions.set(box.exclusion, { x: exclX, y: exclY, w: EXCL_W, h: exclH });
         }
 
         // Down arrow to next box within same section
