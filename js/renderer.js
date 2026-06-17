@@ -40,7 +40,6 @@ const COLOR_BOX_STROKE  = '#2E4FA3';
 const COLOR_EXCL_FILL   = '#F5F5F5';
 const COLOR_EXCL_STROKE = '#888888';
 const COLOR_ERROR_STROKE = '#E74C3C';
-const COLOR_MERGED_FILL = '#EEF2FF';
 const COLOR_ARROW       = '#555555';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
