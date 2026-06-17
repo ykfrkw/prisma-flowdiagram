@@ -530,8 +530,10 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
     currentY += SECTION_GAP;
 
     const mergedAreaX = MARGIN + SECTION_LABEL_W;
-    const mergedAreaW = svgW - mergedAreaX - MARGIN;
-    const boxX = mergedAreaX + Math.floor((mergedAreaW - BOX_W) / 2);
+    // Center the merged box over the column flow midpoint (not the full width,
+    // which would shift it right by the last column's reserved exclusion space
+    // and make the incoming merge funnel lopsided).
+    const boxX = mergedAreaX + Math.floor((nCols - 1) * COL_UNIT / 2);
     const exclX = boxX + BOX_W + H_ARROW;
 
     // Last box of previous merged section, for inter-section arrows
@@ -568,7 +570,7 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
         svg.appendChild(svgEl('rect', {
           x: boxX, y: boxY,
           width: BOX_W, height: bh,
-          fill: COLOR_MERGED_FILL,
+          fill: 'white',
           stroke: hasError ? COLOR_ERROR_STROKE : COLOR_BOX_STROKE,
           'stroke-width': hasError ? 2.5 : 1.5,
           rx: CORNER, ry: CORNER
