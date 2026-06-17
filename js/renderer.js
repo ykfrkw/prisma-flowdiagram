@@ -313,15 +313,13 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
     sectionHeights[label] = Math.max(maxH, 40);
   }
 
-  // Merged section heights
+  // Merged section heights (account for exclusion boxes via row heights)
   const mergedSectionHeights = [];
+  const mergedRowData = [];
   for (const sec of (parsed.merged || [])) {
-    let h = 0;
-    for (let bi = 0; bi < sec.boxes.length; bi++) {
-      h += calcBoxHeight(sec.boxes[bi].title, sec.boxes[bi].contents, WRAP_CHARS);
-      if (bi < sec.boxes.length - 1) h += V_ARROW;
-    }
-    mergedSectionHeights.push(Math.max(h, 40));
+    const rows = computeRowHeights(sec);
+    mergedRowData.push(rows);
+    mergedSectionHeights.push(Math.max(colSectionHeight(rows), 40));
   }
 
   // Dynamic header height: fit to actual line count across all columns
@@ -529,31 +527,42 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
 
   // --- Draw merged section ---
   if (hasMerged) {
-    svg.appendChild(svgEl('line', {
-      x1: MARGIN, y1: currentY,
-      x2: svgW - MARGIN, y2: currentY,
-      stroke: '#CCCCCC',
-      'stroke-width': 1,
-      'stroke-dasharray': '5 4'
-    }));
     currentY += SECTION_GAP;
 
     const mergedAreaX = MARGIN + SECTION_LABEL_W;
     const mergedAreaW = svgW - mergedAreaX - MARGIN;
+    const boxX = mergedAreaX + Math.floor((mergedAreaW - BOX_W) / 2);
+    const exclX = boxX + BOX_W + H_ARROW;
+
+    // Last box of previous merged section, for inter-section arrows
+    let prevLastBox = null;  // { bottomY, box }
 
     for (let si = 0; si < parsed.merged.length; si++) {
       const sec = parsed.merged[si];
       const secH = mergedSectionHeights[si];
+      const rows = mergedRowData[si];
 
       if (sec.label) {
         drawSectionLabel(svg, sec.label, currentY, secH);
       }
 
+      // Inter-section arrow: previous section's last box → this section's first box
+      const firstBox = sec.boxes[0];
+      if (prevLastBox && firstBox) {
+        const arrowColor = isErrorArrow(prevLastBox.box, firstBox)
+          ? COLOR_ERROR_STROKE : COLOR_ARROW;
+        svg.appendChild(drawDownArrow(
+          boxX + BOX_W / 2,
+          prevLastBox.bottomY,
+          currentY,
+          arrowColor
+        ));
+      }
+
       let boxY = currentY;
       for (let bi = 0; bi < sec.boxes.length; bi++) {
         const box = sec.boxes[bi];
-        const bh = calcBoxHeight(box.title, box.contents, WRAP_CHARS);
-        const boxX = mergedAreaX + Math.floor((mergedAreaW - BOX_W) / 2);
+        const { bh, exclH, rowH } = rows[bi];
 
         const hasError = boxErrors.has(box);
         svg.appendChild(svgEl('rect', {
@@ -567,6 +576,27 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
         svg.appendChild(renderBoxText(box.title, box.contents, boxX, boxY, WRAP_CHARS, true));
 
         boxPositions.set(box, { x: boxX, y: boxY, w: BOX_W, h: bh });
+
+        // Exclusion box (right side), mirroring the column renderer
+        if (box.exclusion) {
+          const exclY = boxY;
+          const mainCenterY = boxY + bh / 2;
+          const exclHasError = exclErrors.has(box.exclusion);
+          svg.appendChild(svgEl('rect', {
+            x: exclX, y: exclY,
+            width: EXCL_W, height: exclH,
+            fill: COLOR_EXCL_FILL,
+            stroke: exclHasError ? COLOR_ERROR_STROKE : COLOR_EXCL_STROKE,
+            'stroke-width': exclHasError ? 2.5 : 1.2,
+            rx: CORNER, ry: CORNER
+          }));
+          svg.appendChild(renderBoxText(
+            box.exclusion.title, box.exclusion.contents,
+            exclX, exclY, EXCL_WRAP, false
+          ));
+          svg.appendChild(drawRightArrow(boxX + BOX_W, mainCenterY, exclX));
+          boxPositions.set(box.exclusion, { x: exclX, y: exclY, w: EXCL_W, h: exclH });
+        }
 
         // from: arrows (legacy: source IDs listed on destination box)
         if (box.from && box.from.length > 0 && parsed._boxById) {
@@ -595,13 +625,13 @@ function renderSVG(parsed, boxErrors, exclErrors, arrowErrors) {
 
         if (bi < sec.boxes.length - 1) {
           const nextBox = sec.boxes[bi + 1];
-          const nextBH = calcBoxHeight(nextBox.title, nextBox.contents, WRAP_CHARS);
-          const nextBoxY = boxY + bh + V_ARROW;
+          const nextBoxY = boxY + rowH + V_ARROW;
           const arrowColor = isErrorArrow(box, nextBox) ? COLOR_ERROR_STROKE : COLOR_ARROW;
           svg.appendChild(drawDownArrow(boxX + BOX_W / 2, boxY + bh, nextBoxY, arrowColor));
           boxY = nextBoxY;
         } else {
-          boxY += bh;
+          prevLastBox = { bottomY: boxY + bh, box };
+          boxY += rowH;
         }
       }
 
